@@ -3,6 +3,7 @@ Reads 'shall' statements from the stored chunks; falls back to a demo set so the
 screen always renders (clearly a fallback)."""
 from fastapi import APIRouter
 from ..database import get_conn
+from ..services.tenant_service import normalize_tenant_id
 router = APIRouter()
 
 DEMO = [
@@ -16,6 +17,7 @@ DEMO = [
 
 @router.get("/compliance/{opportunity_id}")
 def compliance(opportunity_id: str, tenant_id: str = "demo"):
+    tenant_id = normalize_tenant_id(tenant_id)
     try:
         with get_conn() as c, c.cursor() as cur:
             cur.execute(

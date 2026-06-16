@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from ..database import get_conn
 from ..services import audit_service
+from ..services.tenant_service import normalize_tenant_id
 router = APIRouter()
 
 class FeedbackBody(BaseModel):
@@ -15,6 +16,7 @@ class FeedbackBody(BaseModel):
 
 @router.post("/feedback")
 def feedback(body: FeedbackBody):
+    tenant_id = normalize_tenant_id(body.tenant_id)
     rating = body.rating or ("up" if body.verdict == "correct" else "down")
     with get_conn() as c, c.cursor() as cur:
         try:
@@ -31,5 +33,5 @@ def feedback(body: FeedbackBody):
                             (body.answer_id or body.evaluation_run_id, body.verdict))
         except Exception:
             pass
-        audit_service.log(cur, body.tenant_id, "user", f"user_feedback_{rating}", query=body.evaluation_run_id)
+        audit_service.log(cur, tenant_id, "user", f"user_feedback_{rating}", query=body.evaluation_run_id)
     return {"status": "saved", "rating": rating}

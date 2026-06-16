@@ -4,6 +4,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from ..database import get_conn
 from ..services.pdf_loader import load_pdf
 from ..services import store, audit_service, document_versioning_service
+from ..services.tenant_service import normalize_tenant_id
 router = APIRouter()
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -11,6 +12,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/upload")
 async def upload(file: UploadFile = File(...), title: str = Form("Untitled"),
                  tenant_id: str = Form("demo"), access_groups: str = Form("[]")):
+    tenant_id = normalize_tenant_id(tenant_id)
     groups = json.loads(access_groups) if access_groups else []
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         raw = await file.read(); tmp.write(raw); path = tmp.name

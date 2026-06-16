@@ -1,10 +1,12 @@
 """GET /dashboard — aggregate counts for the home screen cards."""
 from fastapi import APIRouter
 from ..database import get_conn
+from ..services.tenant_service import normalize_tenant_id
 router = APIRouter()
 
 @router.get("/dashboard")
 def dashboard(tenant_id: str = "demo"):
+    tenant_id = normalize_tenant_id(tenant_id)
     out = {"documents":0,"chunks":0,"scores":0,"recent":[]}
     try:
         with get_conn() as c, c.cursor() as cur:

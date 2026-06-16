@@ -1,6 +1,6 @@
 # BidIntel — Enterprise Hybrid RAG Analyst Platform
 FastAPI + React + PostgreSQL/pgvector + BM25 + RRF + Reranker + (mock) AWS Bedrock,
-with RBAC, evaluation scoring, citation verification, user feedback, observability, and CI/CD.
+with RBAC, evaluation scoring, citation verification, user feedback, and observability.
 
 
 > **Read first — this is a local-first portfolio build.** It is **not deployed live**: AWS
@@ -123,7 +123,6 @@ metrics, Response Quality score) → audit + cost/latency logs.
 - Citation verification — `services/evaluation/citation_verifier.py`
 - Response Quality scoring — `services/evaluation/response_score_service.py`
 - Phoenix tracing (sim) + RAGAS/DeepEval tests (`tests/evals`) + request logs (cost/latency)
-- CI/CD — `.github/workflows/bidintel-ci.yml`
 
 ## Proof commands (verified)
 ```bash

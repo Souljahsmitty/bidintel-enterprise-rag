@@ -1,0 +1,2 @@
+{"question":"What is the SOC monitoring requirement?","expected_evidence":"24/7 SOC monitoring","min_faithfulness":0.7,"min_citation":0.6}
+{"question":"Is FedRAMP authorization required?","expected_evidence":"FedRAMP Moderate","min_faithfulness":0.7,"min_citation":0.6}

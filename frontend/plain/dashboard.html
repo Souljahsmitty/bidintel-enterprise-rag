@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — Dashboard</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<script src="api.js"></script><script src="layout.js"></script>
+<script>requireAuth(); renderLayout("Dashboard");</script>
+<script>
+  const page=document.getElementById("page");
+  page.innerHTML = `<h1>Good morning, Adam</h1>
+    <p class="sub">Here's your capture pipeline at a glance.</p>
+    <div class="grid" id="cards"></div>
+    <div class="card" style="margin-top:18px"><h2>Recent AI activity</h2>
+      <ul id="recent" class="muted" style="margin:0;padding-left:18px"></ul></div>`;
+  apiGet("/dashboard").then(d=>{
+    document.getElementById("cards").innerHTML = `
+      <div class="card statcard"><div class="stat-label">Documents</div><div class="stat">${d.documents}</div><div class="stat-sub">ingested</div></div>
+      <div class="card statcard i"><div class="stat-label">Chunks stored</div><div class="stat">${d.chunks}</div><div class="stat-sub">searchable evidence</div></div>
+      <div class="card statcard o"><div class="stat-label">Bids scored</div><div class="stat">${d.scores}</div><div class="stat-sub">bid / no-bid</div></div>
+      <div class="card statcard g"><div class="stat-label">Pipeline</div><div class="stat">OK</div><div class="stat-sub">RAG live</div></div>`;
+    document.getElementById("recent").innerHTML =
+      (d.recent||[]).map(r=>`<li>${r.action} — ${r.ts}</li>`).join("") || "<li>No activity yet — ingest a document.</li>";
+  }).catch(()=>{document.getElementById("cards").innerHTML='<div class="card">Start the backend to load stats.</div>';});
+</script></body></html>

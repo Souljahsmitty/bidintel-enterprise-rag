@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BidIntel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand"><span class="logo">II</span> BidIntel</div>
+    <div class="role">Proposal Writer</div>
+  </header>
+
+  <main class="grid">
+    <!-- 1) DOCUMENTS: upload a PDF -> /upload -> ingestion pipeline -->
+    <section class="card">
+      <h2>Documents</h2>
+      <p class="muted">Upload a PDF. The backend loads, chunks, embeds, and stores it.</p>
+      <input type="file" id="fileInput" accept="application/pdf" />
+      <button id="ingestBtn" class="btn">Ingest document</button>
+      <ul id="pipeline" class="pipeline"></ul>
+    </section>
+
+    <!-- 2) ASSISTANT: ask a question -> /ask -> hybrid RAG -> answer -->
+    <section class="card">
+      <h2>AI Assistant</h2>
+      <input type="text" id="question" placeholder="Ask about your documents..." />
+      <button id="askBtn" class="btn btn-primary">Ask</button>
+
+      <div id="answerPanel" class="answer hidden">
+        <p id="answerText"></p>
+        <div id="sources" class="chips"></div>
+        <div class="scores">
+          <span>Faithfulness <b id="faith">—</b></span>
+          <span>Answer rel. <b id="arel">—</b></span>
+          <span>Context prec. <b id="cprec">—</b></span>
+        </div>
+        <!-- Feedback buttons -> /feedback -->
+        <div class="feedback">
+          <button class="btn ok"   data-verdict="correct">Correct</button>
+          <button class="btn bad"  data-verdict="wrong">Wrong</button>
+          <button class="btn warn" data-verdict="needs_review">Needs Review</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3) EVIDENCE: what the pipeline retrieved -->
+    <aside class="card">
+      <h2>Retrieved Context</h2>
+      <div id="evidence" class="evidence"></div>
+    </aside>
+
+    <!-- 4) BID / NO-BID: score -> /score-proposal -->
+    <section class="card">
+      <h2>Bid / No-Bid</h2>
+      <button id="scoreBtn" class="btn">Run scoring</button>
+      <div id="scoreOut" class="score-out"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

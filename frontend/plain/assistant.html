@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — AI Assistant</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<script src="api.js"></script><script src="layout.js"></script>
+<script>requireAuth(); renderLayout("AI Assistant");</script>
+<script>
+  document.getElementById("page").innerHTML = `<h1>AI Assistant</h1>
+    <p class="sub">Ask about your documents. Hybrid retrieval → rerank → grounded, cited answer.</p>
+    <div class="card">
+      <input type="text" id="q" placeholder="e.g. What is the SOC monitoring requirement?"/>
+      <button class="btn btn-primary" id="ask">Ask</button>
+    </div>
+    <div class="card hidden" id="ans" style="margin-top:16px">
+      <p id="answer" style="font-size:15px;line-height:1.6"></p>
+      <div id="chips" class="chips"></div>
+      <div id="quality"></div>
+      <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+        <span class="muted" style="font-size:13px;margin-right:8px">Was this helpful?</span>
+        <button class="btn ok" data-v="correct">Helpful</button>
+        <button class="btn bad" data-v="wrong">Not helpful</button>
+        <button class="btn warn" data-v="needs_review">Needs review</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Retrieved context</h2>
+      <div id="ev" class="muted">Ask a question to see the evidence the answer is grounded in.</div></div>`;
+
+  document.getElementById("ask").addEventListener("click", async ()=>{
+    const q=document.getElementById("q").value.trim(); if(!q) return;
+    let d; try { d=await apiPostJson("/ask",{question:q,tenant_id:TENANT()}); }
+    catch(e){ alert("Start the backend first (uvicorn / docker compose)."); return; }
+    document.getElementById("ans").classList.remove("hidden");
+    document.getElementById("answer").textContent=d.answer;
+    document.getElementById("chips").innerHTML=(d.citations||[]).map(c=>
+      `<a class="chip" href="${window.API||'http://localhost:8000'}/documents/${c.document_id}/download" target="_blank">[${c.marker}] source p${c.page} ↗</a>`).join("");
+    const qy=d.quality||{};
+    document.getElementById("quality").innerHTML = qy.response_quality!==undefined ?
+      `<div style="margin-top:6px"><span class="score-big" style="font-size:26px">${qy.response_quality}%</span>
+        <span class="muted"> response quality</span><br>
+        <span class="qchip">Citation: ${qy.citation_support}</span>
+        <span class="qchip">Coverage: ${qy.evidence_coverage}</span>
+        <span class="qchip">Risk: ${qy.hallucination_risk}</span>
+        <span class="qchip">Sources: ${qy.sources_used}</span></div>` : "";
+    document.getElementById("ev").innerHTML=(d.evidence||[]).map(x=>
+      `<div class="ev"><b>chunk ${x.id}</b> · score ${(x.rerank??x.rrf??0).toFixed(2)}<br>${x.text.slice(0,150)}…</div>`).join("")
+      || '<span class="muted">No evidence returned — try ingesting a document first.</span>';
+    window._aid=d.evaluation_run_id||"demo";
+  });
+  document.addEventListener("click", async ev=>{
+    if(ev.target.dataset && ev.target.dataset.v){
+      await apiPostJson("/feedback",{evaluation_run_id:window._aid,answer_id:window._aid,verdict:ev.target.dataset.v,tenant_id:TENANT()});
+      ev.target.textContent="Saved ✓";
+    }
+  });
+</script></body></html>

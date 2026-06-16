@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — Audit Logs</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<script src="api.js"></script><script src="layout.js"></script>
+<script>requireAuth(); renderLayout("Audit Logs");</script>
+<script>
+  document.getElementById("page").innerHTML = `<h1>Audit Logs</h1>
+    <p class="sub">Every query, retrieval, and guardrail decision — immutable.</p>
+    <div class="card"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Query</th><th>Eval</th><th>Guardrail</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody></table></div>`;
+  apiGet("/audit-logs").then(d=>{
+    const r=d.events||[];
+    document.getElementById("rows").innerHTML = r.length ? r.map(e=>
+      `<tr><td>${e.ts}</td><td>${e.user}</td><td>${e.action}</td><td>${e.query||""}</td><td>${e.eval??""}</td><td>${e.guardrail}</td></tr>`).join("")
+      : `<tr><td colspan="6" class="muted">No events yet — ask a question first.</td></tr>`;
+  }).catch(()=>{document.getElementById("rows").innerHTML='<tr><td colspan="6" class="muted">Start the backend to load the audit log.</td></tr>';});
+</script></body></html>

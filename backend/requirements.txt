@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+pgvector
+sentence-transformers
+rank-bm25
+pypdf
+python-multipart
+pydantic
+boto3

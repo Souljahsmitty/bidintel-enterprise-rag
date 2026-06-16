@@ -1,0 +1,36 @@
+"""Insert 5 mock federal-bidding documents + chunks so reviewers have predictable data.
+Run: python -m app.scripts.seed_mock_corpus"""
+from uuid import uuid4
+from app.database import get_conn
+from app.services.embedding_service import embed
+
+DOCS = [
+ ("DHS Cyber Modernization RFP", "proposal",
+  "The contractor shall provide 24/7 SOC monitoring services. FedRAMP Moderate authorization is required."),
+ ("SOC Past Performance", "past_performance",
+  "Delivered 24/7 SOC monitoring and reduced mean time to respond by 40% for a federal agency."),
+ ("Compliance Controls Policy", "compliance",
+  "The contractor shall comply with NIST SP 800-171 and provide monthly metrics reporting."),
+ ("Pricing Realism Note", "pricing",
+  "Labor rates align to GSA MAS ceilings; pricing realism documented for cleared analysts."),
+ ("HR Payroll Restricted", "hr",
+  "Employee payroll records and salary bands. Restricted to HR role only."),
+]
+
+def main():
+    with get_conn() as c, c.cursor() as cur:
+        n_docs = n_chunks = 0
+        for title, group, text in DOCS:
+            doc_id = uuid4()
+            cur.execute("""INSERT INTO documents (id,tenant_id,title,filename,doc_type,access_groups,created_at)
+                           VALUES (%s,%s,%s,%s,%s,%s, now())""",
+                        (doc_id, None, title, title + ".txt", group, [group]))
+            vec = embed([text])[0]
+            cur.execute("""INSERT INTO chunks (id,document_id,tenant_id,page_number,chunk_text,embedding,access_groups,is_active)
+                           VALUES (%s,%s,%s,%s,%s,%s,%s,true)""",
+                        (uuid4(), doc_id, None, 1, text, vec, [group]))
+            n_docs += 1; n_chunks += 1
+        print(f"seeded {n_docs} documents and {n_chunks} chunks")
+
+if __name__ == "__main__":
+    main()

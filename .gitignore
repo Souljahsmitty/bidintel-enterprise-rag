@@ -1,0 +1,18 @@
+# secrets / env
+.env
+*.env
+!.env.example
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# node / build
+node_modules/
+dist/
+build/
+# uploaded files + local data
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
+# os
+.DS_Store

@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — Documents</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<script src="api.js"></script><script src="layout.js"></script>
+<script>requireAuth(); renderLayout("Documents");</script>
+<script>
+  const API_BASE = (window.API || "http://localhost:8000");
+  document.getElementById("page").innerHTML = `<h1>Documents</h1>
+    <p class="sub">Upload a PDF — it is loaded, chunked, embedded, and stored. The original is kept so you can open it next to a cited answer.</p>
+    <div class="card"><b>Add document</b>
+      <input type="file" id="file" accept="application/pdf" style="margin-top:10px"/>
+      <button class="btn btn-primary" id="ingest">Ingest document</button>
+      <ul id="pipeline" class="pipeline"></ul></div>
+    <div class="card" style="margin-top:16px"><b>Document inventory</b>
+      <table style="margin-top:8px"><thead><tr><th>Title</th><th>Type</th><th>Chunks</th><th>Source</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody></table></div>`;
+
+  function load(){
+    apiGet("/documents").then(d=>{
+      const rows=d.documents||[];
+      document.getElementById("rows").innerHTML = rows.length ? rows.map(r=>
+        `<tr><td>${r.title}</td><td>${r.type||""}</td><td>${r.chunks}</td>
+         <td><a class="chip" href="${API_BASE}/documents/${r.id}/download" target="_blank">View / download</a></td></tr>`).join("")
+        : `<tr><td colspan="4" class="muted">No documents yet — ingest a PDF above.</td></tr>`;
+    }).catch(()=>{document.getElementById("rows").innerHTML='<tr><td colspan="4" class="muted">Start the backend to load documents.</td></tr>';});
+  }
+  document.getElementById("ingest").addEventListener("click", async ()=>{
+    const f=document.getElementById("file").files[0]; if(!f) return alert("Choose a PDF first");
+    const fd=new FormData(); fd.append("file",f); fd.append("title",f.name);
+    fd.append("tenant_id",TENANT()); fd.append("access_groups",JSON.stringify(["proposal"]));
+    const d=await apiPostForm("/upload",fd);
+    document.getElementById("pipeline").innerHTML=(d.pipeline||[]).map(s=>`<li>✓ ${s}</li>`).join("")+`<li>✓ ${d.chunks_inserted} chunks stored</li>`;
+    load();
+  });
+  load();
+</script></body></html>

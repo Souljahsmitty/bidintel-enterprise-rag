@@ -1,0 +1,36 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — Sign in</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<div class="cui">CONTROLLED UNCLASSIFIED INFORMATION // AUTHORIZED USE ONLY</div>
+<div class="login">
+  <div class="login-left">
+    <div class="brand" style="border:none"><span class="logo">II</span><span><b>BidIntel AI</b><small>CONTRACT BIDDING COMMAND CENTER</small></span></div>
+    <h1>Win more federal work with <span>capture intelligence.</span></h1>
+    <p>One secure workspace for solicitations, past performance, compliance, and bid / no-bid decisions — grounded in your own knowledge base, not the model's guesses.</p>
+    <ul>
+      <li>RAG retrieval across every solicitation &amp; proposal artifact</li>
+      <li>Automated compliance matrices &amp; bid / no-bid scoring</li>
+      <li>Role-based access (RBAC) with full audit logging</li>
+    </ul>
+  </div>
+  <div class="login-right">
+    <div class="login-card">
+      <p class="muted" style="font-weight:700;letter-spacing:.1em;font-size:12px">WELCOME BACK</p>
+      <h2>Sign in to BidIntel AI</h2>
+      <p class="muted">Local dev login (AWS Cognito SSO in production).</p>
+      <input type="text" id="email" placeholder="you@agency.gov" value="adam.davis@bidintel.ai"/>
+      <input type="password" id="pw" placeholder="Password" value="demo"/>
+      <button class="btn btn-primary" style="width:100%" id="signin">Sign in</button>
+      <p class="muted" style="font-size:12px;margin-top:14px">Authorized use only. Activity is monitored and logged.</p>
+    </div>
+  </div>
+</div>
+<script src="api.js"></script>
+<script>
+  document.getElementById("signin").addEventListener("click",()=>{
+    localStorage.setItem("id_token","local-dev-token");
+    localStorage.setItem("tenant_id","demo");
+    window.location="dashboard.html";
+  });
+</script></body></html>

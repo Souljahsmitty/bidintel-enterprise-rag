@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BidIntel — Bid / No-Bid</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<script src="api.js"></script><script src="layout.js"></script>
+<script>requireAuth(); renderLayout("Bid / No-Bid");</script>
+<script>
+  document.getElementById("page").innerHTML = `<h1>Bid / No-Bid</h1>
+    <p class="sub">Score an opportunity against retrieved evidence (placeholder scorer — see README).</p>
+    <div class="card"><button class="btn btn-primary" id="score">Run scoring</button>
+      <div id="out" class="muted" style="margin-top:14px">Click “Run scoring” to evaluate the opportunity.</div></div>`;
+  document.getElementById("score").addEventListener("click", async ()=>{
+    let d; try { d=await apiPostJson("/score-proposal",{opportunity_id:"dhs-cyber",tenant_id:TENANT()}); }
+    catch(e){ document.getElementById("out").textContent="Start the backend first."; return; }
+    document.getElementById("out").innerHTML=
+      `<span class="score-big">${d.final_score}</span> <span class="muted">/ 100 — <b>${d.recommendation}</b></span>
+       <ul style="margin-top:10px">${Object.entries(d.factors||{}).map(([k,v])=>`<li>${k}: <b>${v}</b></li>`).join("")}</ul>`;
+  });
+</script></body></html>

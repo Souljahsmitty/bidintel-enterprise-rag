@@ -7,9 +7,9 @@ echo "[4/6] applying schema + enterprise migration..."
 docker compose exec -T db psql -U postgres -d postgres -f - < backend/scripts/create_tables.sql || true
 docker compose exec -T db psql -U postgres -d postgres -f - < backend/app/database/migrations/003_enterprise_tables.sql || true
 echo "[5/6] seeding sample documents..."
-docker compose exec -T backend python scripts/seed_mock_corpus.py || true
+docker compose exec -T backend env PYTHONPATH=. python scripts/seed_mock_corpus.py
 echo "[6/6] ready:"
 echo "  Frontend : http://localhost:5173"
 echo "  Swagger  : http://localhost:8000/docs"
 echo "  Health   : http://localhost:8000/health"
-echo "Proof: docker compose exec -T backend python scripts/test_access_control.py"
+echo "Proof: docker compose exec -T backend env PYTHONPATH=. python scripts/test_access_control.py"

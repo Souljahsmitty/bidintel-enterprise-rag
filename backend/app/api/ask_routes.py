@@ -1,6 +1,6 @@
-"""POST /ask — RAG + enterprise evaluation:
-hybrid (RBAC-filtered) -> rerank -> context -> generate -> cite -> verify citations ->
-RAGAS metrics -> response-quality score -> store evaluation_run/scores -> request log."""
+"""POST /ask — model efficiency harness + enterprise RAG evaluation:
+cache -> RBAC-filtered trusted KB retrieval -> confidence gate -> LLM fallback ->
+citations -> RAGAS-style metrics -> response-quality score -> store evaluation/cache."""
 from uuid import uuid4
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -11,12 +11,15 @@ from ..services.context_builder import build_context
 from ..services.bedrock_llm_service import generate
 from ..services.citation_service import attach_citations
 from ..services import audit_service
+from ..services.confidence_gate_service import answer_from_trusted_evidence, trusted_kb_confidence
 from ..services.evaluation.ragas_service import evaluate_rag
 from ..services.evaluation.citation_verifier import verify_citations
 from ..services.evaluation.response_score_service import response_quality
 from ..services.evaluation.phoenix_service import trace
 from ..services.observability.request_logger import Timer, log_request
+from ..services.query_cache_service import get_cached_answer, store_answer
 from ..services.tenant_service import normalize_tenant_id
+from ..config import MODEL_EFFICIENCY_ENABLED, TRUSTED_KB_DIRECT_ENABLED
 router = APIRouter()
 
 class AskBody(BaseModel):
@@ -30,27 +33,55 @@ def ask(body: AskBody):
     with Timer() as timer, get_conn() as c, c.cursor() as cur:
         tenant_id = normalize_tenant_id(body.tenant_id)
         trace("question", body.question)
+        if MODEL_EFFICIENCY_ENABLED:
+            cached = get_cached_answer(cur, tenant_id, body.role, body.question)
+            if cached:
+                trace("model_efficiency_cache_hit", body.question)
+                audit_service.log(cur, tenant_id, "user", "ask_cache_hit",
+                                  query=body.question, eval=cached.get("confidence"))
+                log_after(body, timer, {"usage": {"in": 0, "out": 0}}, tenant_id, endpoint="/ask/cache-hit")
+                return cached
+
         candidates = hybrid_search(cur, tenant_id, body.question, body.role)
         trace("retrieved", len(candidates))
         evidence = rerank(body.question, candidates)
         trace("reranked", len(evidence))
-        context = build_context(body.question, evidence)
-        gen = generate(context)
+        gate = trusted_kb_confidence(body.question, evidence)
+        trace("confidence_gate", gate)
+        if MODEL_EFFICIENCY_ENABLED and TRUSTED_KB_DIRECT_ENABLED and gate["decision"] == "trusted_kb_direct":
+            gen = {
+                "answer": answer_from_trusted_evidence(body.question, evidence),
+                "model": "none-trusted-kb-direct",
+                "usage": {"in": 0, "out": 0},
+            }
+            answer_source = "trusted_kb_direct"
+        else:
+            context = build_context(body.question, evidence)
+            gen = generate(context)
+            answer_source = "llm_fallback"
         cited = attach_citations(gen["answer"], evidence)
         # ---- enterprise evaluation ----
         metrics = evaluate_rag(body.question, cited["answer"], evidence)
         cite_check = verify_citations(cited["answer"], cited["citations"])
         metrics["citation_accuracy"] = cite_check["citation_accuracy"]
         metrics["sources_used"] = len(cited["citations"])
+        metrics["confidence_score"] = gate["score"]
+        metrics["confidence_decision"] = gate["decision"]
+        metrics["answer_source"] = answer_source
         quality = response_quality(metrics)
         trace("evaluated", quality["response_quality"])
         run_id = _store_eval(cur, body, tenant_id, cited["answer"], metrics, cite_check)
         audit_service.log(cur, tenant_id, "user", "ask",
                           query=body.question, eval=metrics["faithfulness"])
-    log_after(body, timer, gen)
-    return {"answer": cited["answer"], "citations": cited["citations"],
-            "evidence": evidence, "eval": metrics, "quality": quality,
-            "evaluation_run_id": str(run_id) if run_id else None, "model": gen["model"]}
+        payload = {"answer": cited["answer"], "citations": cited["citations"],
+                   "evidence": evidence, "eval": metrics, "quality": quality,
+                   "evaluation_run_id": str(run_id) if run_id else None, "model": gen["model"],
+                   "answer_source": answer_source, "cache": "stored",
+                   "confidence": gate}
+        if MODEL_EFFICIENCY_ENABLED:
+            store_answer(cur, tenant_id, body.role, body.question, payload, answer_source, gate["score"])
+    log_after(body, timer, gen, tenant_id)
+    return payload
 
 def _store_eval(cur, body, tenant_id, answer, metrics, cite_check):
     try:
@@ -72,10 +103,10 @@ def _store_eval(cur, body, tenant_id, answer, metrics, cite_check):
     except Exception:
         return None  # enterprise tables not migrated yet; answer still returns
 
-def log_after(body, timer, gen):
+def log_after(body, timer, gen, tenant_id=None, endpoint="/ask"):
     try:
         with get_conn() as c, c.cursor() as cur:
             u = gen.get("usage", {})
-            log_request(cur, None, "/ask", timer.ms, u.get("in", 0), u.get("out", 0))
+            log_request(cur, tenant_id, endpoint, timer.ms, u.get("in", 0), u.get("out", 0))
     except Exception:
         pass

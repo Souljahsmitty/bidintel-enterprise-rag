@@ -46,6 +46,26 @@ CREATE TABLE IF NOT EXISTS request_logs (
     input_tokens INT, output_tokens INT, estimated_cost FLOAT,
     created_at TIMESTAMP DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS query_answer_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    role TEXT NOT NULL,
+    question_hash TEXT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    citations JSONB DEFAULT '[]'::jsonb,
+    evidence JSONB DEFAULT '[]'::jsonb,
+    metrics JSONB DEFAULT '{}'::jsonb,
+    quality JSONB DEFAULT '{}'::jsonb,
+    source TEXT NOT NULL,
+    confidence FLOAT DEFAULT 0,
+    hit_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    UNIQUE (tenant_id, role, question_hash)
+);
+CREATE INDEX IF NOT EXISTS query_answer_cache_lookup
+    ON query_answer_cache (tenant_id, role, question_hash);
 -- document versioning columns on chunks
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS document_version_id UUID;
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;

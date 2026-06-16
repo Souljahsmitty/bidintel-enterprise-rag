@@ -19,7 +19,7 @@ export default function AskQuestion({ opportunityId }) {
       <button onClick={ask}>Ask</button>
       {data && (
         <div className="results">
-          <AnswerPanel answer={data.answer} citations={data.citations} evalScores={data.eval} />
+          <AnswerPanel answer={data.answer} citations={data.citations} evalScores={data.eval} meta={data} />
           <EvidencePanel evidence={data.evidence} />
         </div>
       )}

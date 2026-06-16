@@ -4,13 +4,14 @@ flowchart TB
   end
   subgraph Backend[FastAPI Backend]
     R[Routes: /upload /ask /score-proposal /feedback /compliance /dashboard /audit-logs]
-    RAG[RAG: loader->cleaner->chunker->embed->store / bm25+vector->RRF->rerank->context->LLM->cite]
+    HARNESS[Model efficiency: exact cache->trusted KB->confidence gate->LLM fallback]
+    RAG[RAG: loader->cleaner->chunker->embed->store / bm25+vector->RRF->rerank->cite]
     RBAC[RBAC enforcement: tenant + access groups before context]
     EVAL[Evaluation: citation verify, RAGAS metrics, response quality, Phoenix trace]
     OBS[Observability: request_logs latency+cost]
   end
   subgraph Data[PostgreSQL + pgvector]
-    T[documents, chunks, document_versions, audit_logs, evaluation_runs/scores, citation_checks, user_feedback, request_logs, roles/user_roles]
+    T[documents, chunks, query_answer_cache, document_versions, audit_logs, evaluation_runs/scores, citation_checks, user_feedback, request_logs, roles/user_roles]
   end
   subgraph AWS[Production - simulated in tutorial]
     ECR-->ECS-->RDS
@@ -19,10 +20,10 @@ flowchart TB
     Secrets[Secrets Manager]
     CW[CloudWatch]
   end
-  UI-->R-->RAG-->T
+  UI-->R-->HARNESS-->RAG-->T
   RBAC-->RAG
   RAG-->EVAL-->T
   R-->OBS-->T
   ECS-.runs.->Backend
   RDS-.is.->Data
-  Bedrock-.real LLM.->RAG
+  Bedrock-.fallback LLM.->HARNESS

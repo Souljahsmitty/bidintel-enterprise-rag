@@ -6,7 +6,7 @@
 <script>requireAuth(); renderLayout("AI Assistant");</script>
 <script>
   document.getElementById("page").innerHTML = `<h1>AI Assistant</h1>
-    <p class="sub">Ask about your documents. Hybrid retrieval → rerank → grounded, cited answer.</p>
+    <p class="sub">Ask about your documents. Cache → trusted KB → confidence gate → LLM fallback only when needed.</p>
     <div class="card">
       <input type="text" id="q" placeholder="e.g. What is the SOC monitoring requirement?"/>
       <button class="btn btn-primary" id="ask">Ask</button>
@@ -31,7 +31,11 @@
     catch(e){ alert("Start the backend first (uvicorn / docker compose)."); return; }
     document.getElementById("ans").classList.remove("hidden");
     document.getElementById("answer").textContent=d.answer;
-    document.getElementById("chips").innerHTML=(d.citations||[]).map(c=>
+    const source=d.answer_source||(d.eval||{}).answer_source||"unknown";
+    const conf=d.confidence?.score ?? d.confidence ?? (d.eval||{}).confidence_score;
+    const meta=[`source: ${source}`,`model: ${d.model||"unknown"}`,conf!==undefined?`confidence: ${Number(conf).toFixed(3)}`:null,d.cached_from?`cached from: ${d.cached_from}`:null]
+      .filter(Boolean).map(x=>`<span class="chip">${x}</span>`).join("");
+    document.getElementById("chips").innerHTML=meta+(d.citations||[]).map(c=>
       `<a class="chip" href="${window.API||'http://localhost:8000'}/documents/${c.document_id}/download" target="_blank">[${c.marker}] source p${c.page} ↗</a>`).join("");
     const qy=d.quality||{};
     document.getElementById("quality").innerHTML = qy.response_quality!==undefined ?

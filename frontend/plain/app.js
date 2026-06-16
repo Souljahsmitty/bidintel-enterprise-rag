@@ -29,7 +29,7 @@ document.getElementById("ingestBtn").addEventListener("click", async () => {
   ul.innerHTML += `<li>✓ ${data.chunks_inserted} chunks stored</li>`;
 });
 
-// BUTTON 2: Ask -> POST /ask -> hybrid search -> rerank -> context -> answer + citations
+// BUTTON 2: Ask -> POST /ask -> cache/trusted KB/LLM fallback -> answer + citations
 document.getElementById("askBtn").addEventListener("click", async () => {
   const q = document.getElementById("question").value.trim();
   if (!q) return;
@@ -40,9 +40,19 @@ document.getElementById("askBtn").addEventListener("click", async () => {
   });
   document.getElementById("answerPanel").classList.remove("hidden");
   document.getElementById("answerText").textContent = data.answer;
-  // citation chips
+  // model-efficiency chips + citation chips
   const chips = document.getElementById("sources");
   chips.innerHTML = "";
+  const source = data.answer_source || (data.eval || {}).answer_source || "unknown";
+  const confidence = data.confidence?.score ?? data.confidence ?? (data.eval || {}).confidence_score;
+  [`source: ${source}`, `model: ${data.model || "unknown"}`,
+   confidence !== undefined ? `confidence: ${Number(confidence).toFixed(3)}` : null,
+   data.cached_from ? `cached from: ${data.cached_from}` : null].filter(Boolean).forEach(label => {
+    const s = document.createElement("span");
+    s.className = "chip";
+    s.textContent = label;
+    chips.appendChild(s);
+  });
   (data.citations || []).forEach(c => {
     const s = document.createElement("span");
     s.className = "chip";

@@ -1,6 +1,7 @@
 # BidIntel — Enterprise Hybrid RAG Analyst Platform
 FastAPI + React + PostgreSQL/pgvector + BM25 + RRF + Reranker + (mock) AWS Bedrock,
-with RBAC, evaluation scoring, citation verification, user feedback, and observability.
+with RBAC, a model-efficiency harness, evaluation scoring, citation verification,
+user feedback, and observability.
 
 
 > **Read first — this is a local-first portfolio build.** It is **not deployed live**: AWS
@@ -32,12 +33,13 @@ with RBAC, evaluation scoring, citation verification, user feedback, and observa
 flowchart TB
   UI[React / plain UI: login, dashboard, documents, assistant, compliance, bid, audit]
   R[FastAPI routes: /upload /ask /score-proposal /feedback /compliance /dashboard /audit-logs]
+  CACHE[Model Efficiency Harness: exact cache -> trusted KB -> confidence gate -> LLM fallback]
   RBAC[RBAC filter: tenant + access-group BEFORE the model]
   RAG[Hybrid RAG: BM25 + vector -> RRF -> rerank -> context -> mock Bedrock -> citations]
   EVAL[Evaluation: citation verify, RAGAS metrics, Response Quality, Phoenix trace]
   DB[(PostgreSQL + pgvector)]
   AWS[AWS prod - simulated: ECR/ECS, RDS, Bedrock, Cognito, Secrets, CloudWatch]
-  UI --> R --> RBAC --> RAG --> EVAL --> DB
+  UI --> R --> CACHE --> RBAC --> RAG --> EVAL --> DB
   R --> DB
   RAG -. real LLM .-> AWS
   DB -. managed .-> AWS
@@ -51,7 +53,8 @@ inspect — each is a one-function swap to go live. This is by design, not an un
 
 | Component | Local (this repo) | Production swap | IAM permission needed | Rough cost |
 |-----------|-------------------|-----------------|-----------------------|------------|
-| LLM generation | `bedrock_llm_service.py` mock returns a grounded answer | `boto3 bedrock-runtime.invoke_model` (Claude) | `bedrock:InvokeModel` | ~$3/1M in, ~$15/1M out tokens |
+| Model efficiency | Exact answer cache + trusted-KB confidence gate can skip LLM calls | Bedrock prompt caching + Redis/OpenSearch cache + approval workflow | RDS/Redis/OpenSearch access | reduces repeated LLM calls |
+| LLM generation | `bedrock_llm_service.py` mock returns a grounded answer only after cache/KG miss or low confidence | `boto3 bedrock-runtime.invoke_model` (Claude) | `bedrock:InvokeModel` | ~$3/1M in, ~$15/1M out tokens |
 | Embeddings | local `all-MiniLM-L6-v2` (384-dim, free) | Bedrock Titan Embeddings (1536-dim) | `bedrock:InvokeModel` | ~$0.02 / 1M tokens |
 | Eval metrics | `ragas_service.py` deterministic heuristics | real RAGAS / DeepEval (LLM-judge) | `bedrock:InvokeModel` (judge) | LLM-judge calls per eval |
 | Tracing | `phoenix_service.py` prints spans | Arize Phoenix / OpenInference exporter | none (self-host) or Arize key | free self-host / paid SaaS |
@@ -79,7 +82,7 @@ proposal writer is blocked from HR/payroll evidence; the HR role is allowed.
 **B. Full local stack (Docker + first-run model download, needs internet):**
 ```bash
 bash scripts/start_local.sh      # containers -> migrations -> seed -> URLs
-bash scripts/demo.sh             # health -> seed -> ask -> cited answer -> RBAC proof
+bash scripts/demo.sh             # health -> seed -> ask -> cited answer/cache metadata -> RBAC proof
 ```
 
 **C. Click through the UI:** open `http://localhost:5173` (React) or serve `frontend/plain` and
@@ -113,10 +116,11 @@ bash scripts/start_local.sh
 
 ## What it does
 Upload federal solicitation/proposal docs → hybrid retrieval (RBAC-filtered) → rerank →
-context build → grounded, **cited** answer → **evaluation** (citation verify, RAGAS-style
+model-efficiency confidence gate → cache/trusted-KB answer or LLM fallback → grounded, **cited** answer → **evaluation** (citation verify, RAGAS-style
 metrics, Response Quality score) → audit + cost/latency logs.
 
 ## Enterprise layer
+- Model-efficiency harness (exact cache → trusted KB → confidence gate → LLM fallback) — `app/api/ask_routes.py`, `query_cache_service.py`, `confidence_gate_service.py`
 - RBAC enforcement (tenant + access-group filter before the model) — `app/security/rbac.py`
 - Document versioning (hash → version → mark old chunks inactive) — `document_versioning_service.py`
 - Evaluation tables — `database/migrations/003_enterprise_tables.sql`
@@ -135,6 +139,30 @@ curl -s localhost:8000/health                          # {"status":"ok","db":"co
 ```
 Logic-level proof (RBAC, RRF fusion, context builder, citations, citation verification, RAGAS
 metrics, Response Quality, evaluator) runs without Docker or model downloads and passes.
+
+## Model efficiency harness
+`POST /ask` now follows a cheapest-source-first path:
+
+```text
+exact tenant/role/question cache
+  -> RBAC-filtered trusted KB retrieval
+  -> confidence gate
+  -> direct trusted-KB cited answer when confidence is high
+  -> Bedrock/Claude fallback only when confidence is low
+  -> evaluation + cache store
+```
+
+Local Docker runs use the same orchestration with a mock Bedrock model. Production keeps the
+same control flow but can add Bedrock prompt caching, Redis/OpenSearch semantic cache, and an
+approval workflow for answers stored back into `query_answer_cache`.
+
+Runtime toggles:
+
+```bash
+MODEL_EFFICIENCY_ENABLED=true
+TRUSTED_KB_DIRECT_ENABLED=true
+TRUSTED_KB_CONFIDENCE_THRESHOLD=0.68
+```
 
 ## Docs
 - Architecture: `docs/architecture/bidintel-enterprise-architecture.mmd`

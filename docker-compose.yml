@@ -3,7 +3,6 @@ services:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_PASSWORD: bidintel
-    ports: ["5432:5432"]
     volumes:
       - ./backend/scripts/create_tables.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./backend/app/database/migrations/003_enterprise_tables.sql:/docker-entrypoint-initdb.d/02_enterprise.sql

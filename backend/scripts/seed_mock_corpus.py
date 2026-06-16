@@ -22,6 +22,24 @@ def main():
     with get_conn() as c, c.cursor() as cur:
         cur.execute("INSERT INTO tenants (id,name) VALUES (%s,%s) ON CONFLICT DO NOTHING",
                     (DEMO_TENANT_ID, "demo"))
+        filenames = [title + ".txt" for title, _, _ in DOCS]
+        try:
+            cur.execute("""DELETE FROM query_answer_cache WHERE tenant_id=%s""", (DEMO_TENANT_ID,))
+        except Exception:
+            pass
+        cur.execute("""DELETE FROM chunks
+                       WHERE tenant_id=%s AND document_id IN (
+                         SELECT id FROM documents WHERE tenant_id=%s AND filename = ANY(%s)
+                       )""", (DEMO_TENANT_ID, DEMO_TENANT_ID, filenames))
+        try:
+            cur.execute("""DELETE FROM document_versions
+                           WHERE document_id IN (
+                             SELECT id FROM documents WHERE tenant_id=%s AND filename = ANY(%s)
+                           )""", (DEMO_TENANT_ID, filenames))
+        except Exception:
+            pass
+        cur.execute("""DELETE FROM documents WHERE tenant_id=%s AND filename = ANY(%s)""",
+                    (DEMO_TENANT_ID, filenames))
         n_docs = n_chunks = 0
         for title, group, text in DOCS:
             doc_id = uuid4()

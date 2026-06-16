@@ -1,3 +1,4 @@
+import React from "react";
 import api from "../api/bidintelApi";
 
 export default function FeedbackButtons({ answerId }) {

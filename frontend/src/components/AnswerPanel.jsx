@@ -1,3 +1,5 @@
+import React from "react";
+
 function Bar({ label, value }) {
   return (
     <div className="bar">

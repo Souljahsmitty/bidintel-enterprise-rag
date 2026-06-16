@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function EvidencePanel({ evidence = [] }) {
   return (
     <aside className="evidence-panel">

@@ -1,3 +1,5 @@
+import React from "react";
+
 const STAGES = ["retrieve", "rerank", "context", "generate", "evaluate"];
 
 export default function PipelineVisualizer({ trace = {} }) {
